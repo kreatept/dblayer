@@ -1,0 +1,20 @@
+{
+    "name": "kreatept/dblayer",
+    "description": "A lightweight and flexible ORM for PHP",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Bruno Mota",
+            "email": "kreatept@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kreatept\\DBLayer\\": "src/"
+        }
+    }
+}
