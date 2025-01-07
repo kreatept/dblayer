@@ -1,20 +1,30 @@
 {
-    "name": "kreatept/dblayer",
-    "description": "A lightweight and flexible ORM for PHP",
-    "type": "library",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Your Name",
-            "email": "your.email@example.com"
-        }
-    ],
-    "require": {
-        "php": ">=7.4"
-    },
-    "autoload": {
-        "psr-4": {
-            "Kreatept\\DBLayer\\": "src/"
-        }
+  "name": "kreatept/dblayer",
+  "description": "A lightweight PHP ORM with advanced query capabilities.",
+  "keywords": [
+    "Database",
+    "PDO",
+    "Save",
+    "Delete",
+    "Destroy",
+    "CRUD"
+  ],
+  "homepage": "https://www.kreate.pt",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Bruno Mota",
+      "email": "kreatept@gmail.com",
+      "role": "Developer"
     }
+  ],
+  "require": {
+    "php": ">=8.0",
+    "ext-pdo": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kreatept\\DBLayer\\": "src"
+    }
+  }
 }
