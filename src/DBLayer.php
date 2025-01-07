@@ -383,4 +383,41 @@ abstract class DBLayer
         $camelCase[0] = strtolower($camelCase[0]);
         return $camelCase;
     }
+    /**
+     * @param string $column
+     * @param string $date
+     * @return DBLayer
+     */
+    public function whereDate(string $column, string $date): DBLayer
+    {
+        $this->statement .= " WHERE DATE({$column}) = :date";
+        $this->params['date'] = $date;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param string $startDate
+     * @param string $endDate
+     * @return DBLayer
+     */
+    public function whereBetweenDates(string $column, string $startDate, string $endDate): DBLayer
+    {
+        $this->statement .= " WHERE DATE({$column}) BETWEEN :startDate AND :endDate";
+        $this->params['startDate'] = $startDate;
+        $this->params['endDate'] = $endDate;
+        return $this;
+    }
+
+    /**
+     * @param string $column
+     * @param int $days
+     * @return DBLayer
+     */
+    public function whereLastDays(string $column, int $days): DBLayer
+    {
+        $this->statement .= " WHERE DATE({$column}) >= DATE_SUB(CURDATE(), INTERVAL :days DAY)";
+        $this->params['days'] = $days;
+        return $this;
+    }
 }
