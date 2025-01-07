@@ -7,16 +7,11 @@ use Kreatept\DBLayer\DataLayer;
 $dataLayer = new DataLayer('users');
 
 // Fetch all users
-$result = $dataLayer->insert([
-    'username' => 'test_user',
-    'email' => 'test@example.com',
-    'created_at' => date('Y-m-d H:i:s')
-]);
+$result = $dataLayer->fetch();
 print_r($result);
 
-// Find and update
-$user = $dataLayer->find(1);
-if ($user) {
-    $user->update(['email' => 'updated@example.com']);
-    print_r($user->toArray());
-}
+// Fetch specific user
+$result = $dataLayer
+    ->where('username', 'john_doe')
+    ->fetch();
+print_r($result);
