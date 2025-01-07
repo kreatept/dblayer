@@ -47,6 +47,9 @@ abstract class DBLayer
     /** @var string|null */
     protected ?string $offset = null;
 
+    /** @var string|null */
+    protected ?string $join = null;
+
     /** @var PDOException|null */
     protected ?PDOException $fail = null;
 
@@ -124,7 +127,6 @@ abstract class DBLayer
         $stmt->execute($this->params);
         return $stmt->fetchAll($mode);
     }
-
 
     /**
      * @return object|null
@@ -244,6 +246,18 @@ abstract class DBLayer
     }
 
     /**
+     * @param string $table
+     * @param string $condition
+     * @param string $type
+     * @return DBLayer
+     */
+    public function join(string $table, string $condition, string $type = 'INNER'): DBLayer
+    {
+        $this->join .= " {$type} JOIN {$table} ON {$condition}";
+        return $this;
+    }
+
+    /**
      * @param bool $all
      * @return static|array|null
      */
@@ -251,7 +265,7 @@ abstract class DBLayer
     {
         try {
             $stmt = Connect::getInstance($this->database)->prepare(
-                $this->statement . $this->group . $this->order . $this->limit . $this->offset
+                $this->statement . $this->join . $this->group . $this->order . $this->limit . $this->offset
             );
             $stmt->execute($this->params);
 
@@ -358,7 +372,6 @@ abstract class DBLayer
         unset($safe[$this->primary]);
         return $safe;
     }
-
 
     /**
      * @param string $string
