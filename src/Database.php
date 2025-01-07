@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Kreatept\DBLayer;
@@ -26,3 +27,5 @@ class Database
         return self::$instance;
     }
 }
+
+?>

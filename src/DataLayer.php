@@ -1,122 +1,121 @@
+
 <?php
 
 namespace Kreatept\DBLayer;
 
 use PDO;
-use Exception;
 
 class DataLayer
 {
     protected $table;
-    protected $primary;
-    protected $required;
+    protected $primaryKey = 'id';
+    protected $timestamps = true;
+    protected $softDeletes = true;
     protected $joins = [];
-    protected $fields = ["*"];
     protected $conditions = [];
-    protected $groupBy = [];
-    protected $having = [];
-    protected $order = [];
-    protected $limit;
-    protected $offset;
     protected $params = [];
-    protected $data = [];
     protected $pdo;
 
-    public function __construct(string $table, string $primary = 'id', array $required = [])
+    public function __construct(string $table)
     {
         $this->table = $table;
-        $this->primary = $primary;
-        $this->required = $required;
         $this->pdo = Database::getInstance();
+    }
+
+    public function create(array $data)
+    {
+        if ($this->timestamps) {
+            $data['created_at'] = date('Y-m-d H:i:s');
+            $data['updated_at'] = $data['created_at'];
+        }
+
+        $fields = implode(', ', array_keys($data));
+        $placeholders = ':' . implode(', :', array_keys($data));
+        $sql = "INSERT INTO {$this->table} ($fields) VALUES ($placeholders)";
+
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute($data);
     }
 
     public function find($value, string $field = null): ?self
     {
-        $field = $field ?? $this->primary;
+        $field = $field ?? $this->primaryKey;
         $sql = "SELECT * FROM {$this->table} WHERE {$field} = :value LIMIT 1";
-
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(['value' => $value]);
         $record = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($record) {
-            $this->data = $record;
-            return $this;
-        }
-
-        return null;
+        return $record ? $this->hydrate($record) : null;
     }
 
-    public function insert(array $data): int
+    public function update(array $data)
     {
-        $columns = implode(', ', array_keys($data));
-        $placeholders = ':' . implode(', :', array_keys($data));
-        $sql = "INSERT INTO {$this->table} ({$columns}) VALUES ({$placeholders})";
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($data);
-
-        return (int)$this->pdo->lastInsertId();
-    }
-
-    public function update(array $data): bool
-    {
-        if (empty($this->data)) {
-            throw new Exception("No record loaded to update.");
+        if ($this->timestamps) {
+            $data['updated_at'] = date('Y-m-d H:i:s');
         }
 
-        $setClause = implode(', ', array_map(fn($col) => "{$col} = :{$col}", array_keys($data)));
-        $sql = "UPDATE {$this->table} SET {$setClause} WHERE {$this->primary} = :primaryKey";
+        $fields = implode(', ', array_map(fn($key) => "{$key} = :{$key}", array_keys($data)));
+        $sql = "UPDATE {$this->table} SET {$fields} WHERE {$this->primaryKey} = :id";
 
+        $data['id'] = $this->{$this->primaryKey};
         $stmt = $this->pdo->prepare($sql);
-        $data['primaryKey'] = $this->data[$this->primary];
         return $stmt->execute($data);
     }
 
-    public function destroy(): bool
+    public function delete()
     {
-        if (empty($this->data)) {
-            throw new Exception("No record loaded to delete.");
+        if ($this->softDeletes) {
+            return $this->update(['deleted_at' => date('Y-m-d H:i:s')]);
         }
 
-        $sql = "DELETE FROM {$this->table} WHERE {$this->primary} = :primaryKey";
+        $sql = "DELETE FROM {$this->table} WHERE {$this->primaryKey} = :id";
         $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute(['primaryKey' => $this->data[$this->primary]]);
+        return $stmt->execute(['id' => $this->{$this->primaryKey}]);
     }
 
-    public function where(string $field, $value, string $operator = '=', string $logicalOperator = 'AND'): self
+    public function restore()
     {
-        $paramKey = ":param_" . count($this->params);
-        $this->conditions[] = "{$logicalOperator} {$field} {$operator} {$paramKey}";
-        $this->params[$paramKey] = $value;
+        if ($this->softDeletes) {
+            return $this->update(['deleted_at' => null]);
+        }
+    }
+
+    public function join(string $table, string $on, string $type = 'INNER'): self
+    {
+        $this->joins[] = "{$type} JOIN {$table} ON {$on}";
         return $this;
     }
 
-    public function fetch(): array
+    public function where(string $field, $operator, $value): self
     {
-        $sql = $this->buildQuery();
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $this->conditions[] = "{$field} {$operator} ?";
+        $this->params[] = $value;
+        return $this;
     }
 
-    private function buildQuery(): string
+    public function whereIn(string $field, array $values): self
     {
-        $table = $this->table;
-        $fields = implode(', ', $this->fields);
-        $joins = $this->joins ? ' ' . implode(' ', $this->joins) : '';
-        $conditions = $this->conditions ? ' WHERE ' . ltrim(implode(' ', $this->conditions), 'AND ') : '';
-        $groupBy = $this->groupBy ? ' GROUP BY ' . implode(', ', $this->groupBy) : '';
-        $having = $this->having ? ' HAVING ' . implode(' AND ', $this->having) : '';
-        $order = $this->order ? ' ORDER BY ' . implode(', ', $this->order) : '';
-        $limit = $this->limit ? " LIMIT {$this->limit}" : '';
-        $offset = $this->offset ? " OFFSET {$this->offset}" : '';
-
-        return "SELECT {$fields} FROM {$table}{$joins}{$conditions}{$groupBy}{$having}{$order}{$limit}{$offset}";
+        $placeholders = implode(', ', array_fill(0, count($values), '?'));
+        $this->conditions[] = "{$field} IN ({$placeholders})";
+        $this->params = array_merge($this->params, $values);
+        return $this;
     }
 
-    public function toArray(): array
+    public function whereBetween(string $field, $start, $end): self
     {
-        return $this->data;
+        $this->conditions[] = "{$field} BETWEEN ? AND ?";
+        $this->params[] = $start;
+        $this->params[] = $end;
+        return $this;
+    }
+
+    private function hydrate(array $data): self
+    {
+        $instance = new self($this->table);
+        foreach ($data as $key => $value) {
+            $instance->$key = $value;
+        }
+        return $instance;
     }
 }
+
+?>
