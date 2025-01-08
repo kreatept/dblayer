@@ -145,22 +145,29 @@ abstract class DBLayer
     }
 
     /**
-     * @param string|null $terms
-     * @param string|null $params
-     * @param string $columns
+     * Find records based on conditions
+     * 
+     * @param string|null $terms SQL conditions
+     * @param string|null $params Query parameters in key=value&key2=value2 format
+     * @param string $columns Columns to select
      * @return DBLayer
      */
     public function find(?string $terms = null, ?string $params = null, string $columns = "*"): DBLayer
     {
-        if ($terms) {
-            $this->statement = "SELECT {$columns} FROM {$this->entity} WHERE {$terms}";
-            parse_str($params ?? "", $this->params);
-            return $this;
+        $this->statement = "SELECT {$columns} FROM {$this->entity}";
+
+        if (!empty($this->join)) {
+            $this->statement .= $this->join;
         }
 
-        $this->statement = "SELECT {$columns} FROM {$this->entity}";
+        if ($terms) {
+            $this->statement .= " WHERE {$terms}";
+            parse_str($params ?? "", $this->params);
+        }
+
         return $this;
     }
+
 
     /**
      * @param int $id
@@ -257,22 +264,21 @@ abstract class DBLayer
         return $this;
     }
 
-    /**
-     * @param bool $all
-     * @return static|array|null
-     */
     public function fetch(bool $all = false): array|static|null
     {
         try {
-            $stmt = Connect::getInstance($this->database)->prepare(
-                $this->statement . $this->join . $this->group . $this->order . $this->limit . $this->offset
-            );
+            // Build the query by concatenating optional clauses
+            $query = $this->statement . // Base SELECT statement
+                ($this->group ?? '') . // Optional GROUP BY
+                ($this->order ?? '') . // Optional ORDER BY
+                ($this->limit ?? '') . // Optional LIMIT
+                ($this->offset ?? ''); // Optional OFFSET
+
+            // Prepare and execute the query
+            $stmt = Connect::getInstance($this->database)->prepare($query);
             $stmt->execute($this->params);
 
-            if (!$stmt->rowCount()) {
-                return null;
-            }
-
+            // Return results based on fetch type
             if ($all) {
                 return $stmt->fetchAll(PDO::FETCH_CLASS, static::class);
             }
@@ -283,6 +289,7 @@ abstract class DBLayer
             return null;
         }
     }
+
 
     /**
      * @return int
